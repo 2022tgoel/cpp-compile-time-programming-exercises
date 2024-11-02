@@ -464,8 +464,58 @@ static_assert(Int<3, AddOneType>::value == 4);
 
 }
 
+/** 
+ * Weird stuff with delctype.
+ * If you do decltype(E) it  tells you the type of the with 
+ * which the variable, field, or non-type template parameter was declared.
+ * If you do decltype((E)), it tells you the type of the expressoin.
+ * For example, if you have 
+ * int i = 5;
+ * decltype(i) is int,
+ * but decltype((i)) is int& (lvalue reference to int)
+ * because you can do something like int& x = i;
+ */
+
+template<typename T> constexpr const char *category = "prvalue";
+template<typename T> constexpr const char *category<T&> = "lvalue";
+template<typename T> constexpr const char *category<T&&> = "xvalue";
+
+#define SHOW(E) std::cout << #E << ": " << category<decltype((E))> << std::endl
+
+decltype(auto)
+fn_A(int i) {
+    return i;
+}
+
+decltype(auto)
+fn_B(int& i) {
+    return (i);
+}
+
+struct S {
+    int i;
+};
+
+decltype(auto)
+fn_C(int i) {
+    S thing{i};
+    return (thing.i);
+}
+
+decltype(auto)
+fn_D(int i) {
+    return (S{i}.i);
+}
+
 int main()
 {
+    int i = 6;
+    SHOW(fn_A(0));
+    SHOW(fn_B(i));
+    SHOW(fn_C(0));
+    SHOW(fn_D(0));
+    fn_B(i) = 7;
+    std::cout << i << std::endl;
     using namespace exer;
     print(Vector<>{});
     print(Vector<1>{});
