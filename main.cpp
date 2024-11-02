@@ -371,11 +371,57 @@ static_assert(Get<2, Vector<0,1,2>>::value == 2);
 // Your code goes here:
 // ^ Your code goes here
 
-// static_assert(BisectLeft<  3, Vector<0,1,2,3,4>>::value == 3);
-// static_assert(BisectLeft<  3, Vector<0,1,2,4,5>>::value == 3);
-// static_assert(BisectLeft<  9, Vector<0,1,2,4,5>>::value == 5);
-// static_assert(BisectLeft< -1, Vector<0,1,2,4,5>>::value == 0);
-// static_assert(BisectLeft<  2, Vector<0,2,2,2,2,2>>::value == 1);
+template <int F, typename T>
+struct BisectLeft;
+
+template <int lo, int hi, int F, typename T, typename = void>
+struct BisectLeftRange;
+
+template <int lo, int hi, int F, int... T>
+struct BisectLeftRange<lo, hi, F, Vector<T...>, std::enable_if_t<hi == lo>> {
+    static constexpr int value = lo;
+
+};
+
+template <int lo, int hi, int F, int... T>
+struct BisectLeftRange<lo, hi, F, Vector<T...>, std::enable_if_t<hi == lo + 1>> {
+    using vec = Vector<T...>;
+    static constexpr int v1 = Get<lo, vec>::value;
+    static constexpr int value = (F <= v1) ? lo : hi;
+
+};
+
+template <int lo, int hi, int F, int... T>
+struct BisectLeftRange<lo, hi, F, Vector<T...>, std::enable_if_t<hi == lo + 2>> {
+    using vec = Vector<T...>;
+    static constexpr int v1 = Get<lo, vec>::value;
+    static constexpr int v2 = Get<lo + 1, vec>::value;
+    static constexpr int value = (F <= v1) ? lo : (F <= v2 ? (lo + 1) : hi); 
+};
+
+template <int lo, int hi, int F, int... T>
+struct BisectLeftRange<lo, hi, F, Vector<T...>, std::enable_if_t<(hi > lo + 2)>> {
+    using vec = Vector<T...>;
+    static constexpr int mid = (lo + hi) / 2;
+    static constexpr int midVal = Get<mid, vec>::value;
+    static constexpr int newLo = (F <= midVal) ? lo : (mid + 1);
+    static constexpr int newHi = (F <= midVal) ? (mid + 1) : hi;
+    static constexpr int value = (lo == (hi - 1)) ? lo : BisectLeftRange<newLo, newHi, F, vec>::value;
+
+};
+
+template <int F, int... T>
+struct BisectLeft<F, Vector<T...>> {
+    using vec = Vector<T...>;
+    static constexpr int length = length<vec>;
+    static constexpr int value = BisectLeftRange<0, length, F, vec>::value;
+};
+
+static_assert(BisectLeft<  3, Vector<0,1,2,3,4>>::value == 3);
+static_assert(BisectLeft<  3, Vector<0,1,2,4,5>>::value == 3);
+static_assert(BisectLeft<  9, Vector<0,1,2,4,5>>::value == 5);
+static_assert(BisectLeft< -1, Vector<0,1,2,4,5>>::value == 0);
+static_assert(BisectLeft<  2, Vector<0,2,2,2,2,2>>::value == 1);
 
 
 /**
@@ -466,6 +512,7 @@ static_assert(Int<3, AddOneType>::value == 4);
 
 /** 
  * Weird stuff with delctype.
+ * Taken from this cool blog: https://www.scs.stanford.edu/~dm/blog/decltype.html#value-categories
  * If you do decltype(E) it  tells you the type of the with 
  * which the variable, field, or non-type template parameter was declared.
  * If you do decltype((E)), it tells you the type of the expressoin.
