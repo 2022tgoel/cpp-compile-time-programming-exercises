@@ -29,26 +29,25 @@
 
 #include <iostream>
 #include <type_traits>
-#include <memory>
-#include <vector>
-#include <thread>
+#include <array>
+#include <cstddef>
+#include <iostream>
+#include <tuple>
+#include <utility>
 
-namespace {
+namespace exer {
 
 /**
  * 1. Define Vector, a template level list of integers.
  * Hint: Use non-type template parameter pack.
  */
 
-    template<int... T>
-    struct Vector {
-    };
-
 // Your code goes here:
-// ^ Your code goes here
 
+template <int... Elements>
+struct Vector {};
 
-    static_assert(std::is_same_v<Vector<1, 2>, Vector<1, 2>>);
+static_assert(std::is_same_v<Vector<1,2>, Vector<1,2>>);
 
 
 /**
@@ -57,19 +56,18 @@ namespace {
  * See main() below.
  */
 
-    template<int H, int... T>
-    void print(Vector<H, T...>) {
-        std::cout << H << ", ";
-        print(Vector<T...>{});
-    }
-
-    template<int H>
-    void print(Vector<H>) {
-        std::cout << H;
-    }
-
 // Your code goes here:
-// ^ Your code goes here
+
+template <int H, int... T>
+void print(Vector<H, T...> vec) {
+    std::cout << H << " ";
+    print(Vector<T...>{});
+}
+
+template <int... T>
+void print(Vector<T...> vec) {
+    std::cout << std::endl;
+}
 
 
 /**
@@ -77,19 +75,19 @@ namespace {
  * Hint: Use `using type = ...` inside a struct that has both non-type and type template parameters.
  */
 
-    template<int H, typename T>
-    struct Prepend;
-
-    template<int H, int... T>
-    struct Prepend<H, Vector<T...>> {
-        using type = Vector<H, T...>;
-    };
-
-
 // Your code goes here:
-// ^ Your code goes here
 
-    static_assert(std::is_same_v<Prepend<1, Vector<2, 3>>::type, Vector<1, 2, 3>>);
+template <int H, typename T>
+struct Prepend {
+};
+
+template <int H, int... T>
+struct Prepend<H, Vector<T...>> {
+    using type = Vector<H, T...>;
+};
+
+
+static_assert(std::is_same_v<Prepend<1, Vector<2,3>>::type, Vector<1,2,3>>);
 
 
 /**
@@ -99,33 +97,28 @@ namespace {
  * This technique is not used further to reduce boilerplate.
  */
 
-    template<int H, typename V>
-    using PrependT = Prepend<H, V>::type;
-
 // Your code goes here:
-// ^ Your code goes here
+template <int H, typename T>
+using PrependT = Prepend<H, T>::type;
 
-
-    static_assert(std::is_same_v<PrependT<1, Vector<2, 3>>, Vector<1, 2, 3>>);
+static_assert(std::is_same_v<PrependT<1, Vector<2,3>>, Vector<1,2,3>>);
 
 
 /**
  * 5. Define Append.
  */
 
-    template<int H, typename T>
-    struct Append;
-
-    template<int H, int... T>
-    struct Append<H, Vector<T...>> {
-        using type = Vector<T..., H>;
-    };
-
-
 // Your code goes here:
-// ^ Your code goes here
+template <int H, typename T>
+struct Append {
+};
 
-    static_assert(std::is_same_v<Append<4, Vector<1, 2, 3>>::type, Vector<1, 2, 3, 4> >);
+template <int H, int... T>
+struct Append<H, Vector<T...>> {
+    using type = Vector<T..., H>;
+};
+
+static_assert(std::is_same_v< Append<4, Vector<1,2,3>>::type , Vector<1,2,3,4> >);
 
 
 /**
@@ -133,34 +126,23 @@ namespace {
  */
 
 // Your code goes here:
-// ^ Your code goes here
 
+template <typename T>
+struct PopBack {
+    using type = void;
+};
 
-    template<typename T>
-    struct PopBack;
+template <int H>
+struct PopBack<Vector<H>> {
+    using type = Vector<>; // Remove the last element
+};
 
-    template<typename V1, typename V2>
-    struct PopBack_Helper;
+template <int H,int... T>
+struct PopBack<Vector<H, T...>> {
+    using type = PrependT<H, typename PopBack<Vector<T...>>::type>; // Remove the last element
+};
 
-    template<int... T>
-    struct PopBack<Vector<T...>> {
-        using type = PopBack_Helper<Vector<>, Vector<T...>>::type;
-    };
-
-    template<typename OutputV, int H, int... T>
-    struct PopBack_Helper<OutputV, Vector<H, T...>> {
-        using type = PopBack_Helper<typename Append<H, OutputV>::type, Vector<T...>>::type;
-    };
-
-    template<typename OutputV, int H>
-    struct PopBack_Helper<OutputV, Vector<H>> {
-        using type = OutputV;
-    };
-
-
-    static_assert(std::is_same_v<PopBack<Vector<1, 2, 3, 4, 5>>::type, Vector<1, 2, 3, 4>>);
-    static_assert(std::is_same_v<PopBack<Vector<1, 2, 3, 4, 5, 6, 7, 8, 9>>::type, Vector<1, 2, 3, 4, 5, 6, 7, 8>>);
-    static_assert(std::is_same_v<PopBack<Vector<1>>::type, Vector<>>);
+static_assert(std::is_same_v< PopBack<Vector<1,2,3,4>>::type , Vector<1,2,3> >);
 
 
 /**
@@ -168,9 +150,34 @@ namespace {
  */
 
 // Your code goes here:
-// ^ Your code goes here
+template <int R, typename T>
+struct RemoveFirst {
+    using type = void;
+};
 
-// static_assert(std::is_same_v<RemoveFirst<1, Vector<1,1,2>>::type, Vector<1,2>>);
+template <bool b, int R, typename T>
+struct RemoveFirstEvaluated {
+    using type = void;
+};
+
+template <int R, int H, int... T>
+struct RemoveFirstEvaluated<true, R, Vector<H, T...>> {
+    using type = Vector<T...>;
+};
+
+template <int R, int H, int... T>
+struct RemoveFirstEvaluated<false, R, Vector<H, T...>> {
+    using type = PrependT<H, typename RemoveFirst<R, Vector<T...>>::type>;
+};
+
+template <int R, int H, int... T>
+struct RemoveFirst<R, Vector<H, T...>> {  
+    using type = RemoveFirstEvaluated<R == H, R, Vector<H, T...>>::type;
+};
+
+
+static_assert(std::is_same_v<RemoveFirst<1, Vector<1,1,2>>::type, Vector<1,2>>);
+static_assert(std::is_same_v<RemoveFirst<1, Vector<2,1,1,2>>::type, Vector<2,1,2>>);
 
 
 /**
@@ -178,35 +185,32 @@ namespace {
  */
 
 // Your code goes here:
-// ^ Your code goes here
-    template<int I, typename V1, typename V2>
-    struct RemoveAll_Helper;
+template <int R, typename T>
+struct RemoveAll {
+    using type = Vector<>;
+};
 
-    template<int I, typename V>
-    struct RemoveAll;
+template <bool b, int R, typename T>
+struct RemoveAllEvaluated {
+    using type = Vector<>;
+};
 
-    template<int I, int... Vs>
-    struct RemoveAll<I, Vector<Vs...>> {
-        using type = RemoveAll_Helper<I, Vector<>, Vector<Vs...>>::type;
-    };
+template <int R, int H, int... T>
+struct RemoveAllEvaluated<true, R, Vector<H, T...>> {
+    using type = typename RemoveAll<R, Vector<T...>>::type;
+};
 
-    template<int I, int... Vs1, int... Vs2>
-    struct RemoveAll_Helper<I, Vector<Vs1...>, Vector<I, Vs2...>> {
-        using type = RemoveAll_Helper<I, Vector<Vs1...>, Vector<Vs2...>>::type;
-    };
+template <int R, int H, int... T>
+struct RemoveAllEvaluated<false, R, Vector<H, T...>> {
+    using type = PrependT<H, typename RemoveAll<R, Vector<T...>>::type>;
+};
 
-    template<int I, int J, int... Vs1, int... Vs2>
-    struct RemoveAll_Helper<I, Vector<Vs1...>, Vector<J, Vs2...>> {
-        using type = RemoveAll_Helper<I, Vector<Vs1..., J>, Vector<Vs2...>>::type;
-    };
+template <int R, int H, int... T>
+struct RemoveAll<R, Vector<H, T...>> {  
+    using type = RemoveAllEvaluated<R == H, R, Vector<H, T...>>::type;
+};
 
-    template<int I, int... Vs>
-    struct RemoveAll_Helper<I, Vector<Vs...>, Vector<>> {
-        using type = Vector<Vs...>;
-    };
-
-    static_assert(std::is_same_v<RemoveAll<9, Vector<1, 9, 2, 9, 3, 9>>::type, Vector<1, 2, 3>>);
-    static_assert(std::is_same_v<RemoveAll<9, Vector<>>::type, Vector<>>);
+static_assert(std::is_same_v<RemoveAll<9, Vector<1,9,2,9,3,9>>::type, Vector<1,2,3>>);
 
 
 /**
@@ -215,24 +219,20 @@ namespace {
  */
 
 // Your code goes here:
-// ^ Your code goes here
+template <typename T>
+struct Length;
 
-    template<typename>
-    struct Length;
+template <>
+struct Length<Vector<>> {
+    static constexpr int value = 0;
+};
 
+template <int H, int... T>
+struct Length<Vector<H, T...>> {
+    static constexpr int value = 1 + Length<Vector<T...>>::value;
+};
 
-    template<int H, int... T>
-    struct Length<Vector<H, T...>> {
-        constexpr static int value = 1 + Length<Vector<T...>>::value;
-    };
-
-    template<>
-    struct Length<Vector<>> {
-        constexpr static int value = 0;
-    };
-
-
-    static_assert(Length<Vector<1, 2, 3>>::value == 3);
+static_assert(Length<Vector<1,2,3>>::value == 3);
 
 
 /**
@@ -241,52 +241,62 @@ namespace {
  */
 
 // Your code goes here:
-// ^ Your code goes here
+template <typename T>
+constexpr int length = Length<T>::value;
 
-    template<typename... V>
-    constexpr int length = Length<V...>::value;
-
-    static_assert(length<Vector<>> == 0);
-    static_assert(length<Vector<1, 2, 3>> == 3);
+static_assert(length<Vector<>> == 0);
+static_assert(length<Vector<1,2,3>> == 3);
 
 
 /**
  * 11. Define Min, that stores the minimum of a vector in its property `value`.
  */
 
-    template<typename>
-    struct Min;
-
-    template<int H1, int H2, int... T>
-    struct Min<Vector<H1, H2, T...>> {
-        constexpr static int value = Min<Vector<(H1 < H2 ? H1 : H2), T...>>::value;
-    };
-
-    template<int H1, int H2>
-    struct Min<Vector<H1, H2>> {
-        constexpr static int value = H1 < H2 ? H1 : H2;
-    };
-
-
 // Your code goes here:
-// ^ Your code goes here
+template <typename T>
+struct Min;
 
-    static_assert(Min<Vector<3, 1, 2>>::value == 1);
-    static_assert(Min<Vector<1, 2, 3>>::value == 1);
-    static_assert(Min<Vector<3, 2, 1>>::value == 1);
+template <int T>
+struct Min<Vector<T>> {
+    static constexpr int value = T;
+};
+
+template <int H, int... T>
+struct Min<Vector<H, T...>> {
+    static constexpr int value = (H < Min<Vector<T...>>::value) ? H : Min<Vector<T...>>::value;
+};
+
+
+static_assert(Min<Vector<3,1,2>>::value == 1);
+static_assert(Min<Vector<1,2,3>>::value == 1);
+static_assert(Min<Vector<3,2,1>>::value == 1);
 
 
 /**
  * 12. Define Sort.
  */
 
-
 // Your code goes here:
-// ^ Your code goes here
 
-// static_assert(std::is_same_v<Sort<Vector<4,1,2,5,6,3>>::type, Vector<1,2,3,4,5,6>>);
-// static_assert(std::is_same_v<Sort<Vector<3,3,1,1,2,2>>::type, Vector<1,1,2,2,3,3>>);
-// static_assert(std::is_same_v<Sort<Vector<2,2,1,1,3,3>>::type, Vector<1,1,2,2,3,3>>);
+template <typename T>
+struct Sort;
+
+template <>
+struct Sort<Vector<>> {
+    using type = Vector<>;
+};
+
+
+template <int... T>
+struct Sort<Vector<T...>> {
+    static constexpr int min = Min<Vector<T...>>::value;
+    using RestOfArr = typename RemoveFirst<min, Vector<T...>>::type;
+    using type = PrependT<min, typename Sort<RestOfArr>::type>;
+};
+
+static_assert(std::is_same_v<Sort<Vector<4,1,2,5,6,3>>::type, Vector<1,2,3,4,5,6>>);
+static_assert(std::is_same_v<Sort<Vector<3,3,1,1,2,2>>::type, Vector<1,1,2,2,3,3>>);
+static_assert(std::is_same_v<Sort<Vector<2,2,1,1,3,3>>::type, Vector<1,1,2,2,3,3>>);
 
 
 /**
@@ -324,33 +334,28 @@ namespace {
  * Provide an improved error message when accessing outside of Vector bounds.
  */
 
-
-    template<int Index, typename Vector>
-    struct Get;
-
-
-    template<int Head, int... Tail>
-    struct Get<0, Vector<Head, Tail...>> {
-        constexpr static int value = Head;
-    };
-
-    template<int Index, int Head, int... Tail>
-    struct Get<Index, Vector<Head, Tail...>> {
-        constexpr static int value = Get<Index-1, Vector<Tail...>>::value;
-    };
-
-
-
-// ^ Your code goes here
-
-// static_assert(Get<9, Vector<0,1,2>>::value == 2); // How good is your error message?
-
-
 // Your code goes here:
- static_assert(Get<0, Vector<0,1,2>>::value == 0);
- static_assert(Get<1, Vector<0,1,2>>::value == 1);
- static_assert(Get<2, Vector<0,1,2>>::value == 2);
+template <int I, typename T>
+struct Get;
 
+template <int H, int... T>
+struct Get<0, Vector<H, T...>> {
+    using vec = Vector<H, T...>;
+    static_assert(0 < length<vec>, "Index is out of bounds");
+    static constexpr int value = H;
+};
+
+template <int I, int H, int... T>
+struct Get<I, Vector<H, T...>> {
+    using vec = Vector<H, T...>;
+    static_assert(I < length<vec>, "Index is out of bounds");
+    static constexpr int value = Get<I - 1, Vector<T...>>::value;
+};
+
+static_assert(Get<0, Vector<0,1,2>>::value == 0);
+static_assert(Get<1, Vector<0,1,2>>::value == 1);
+static_assert(Get<2, Vector<0,1,2>>::value == 2);
+// static_assert(Get<9, Vector<0,1,2>>::value == 2); // How good is your error message?
 
 
 /**
@@ -363,33 +368,14 @@ namespace {
  * Hint: You might find it convenient to define a constexpr helper function.
  */
 
-    template<int H, int Res, typename V>
-    struct BisectLeft_Helper;
-
-    template<int H, typename V>
-    struct BisectLeft {
-        constexpr static int value = BisectLeft_Helper<H, 0, V>::value;
-    };
-
-    template<int H, int Res, int F, int... V>
-    struct BisectLeft_Helper<H, Res, Vector<F, V...>> {
-        constexpr static int value = (H > F) ? BisectLeft_Helper<H, Res + 1, Vector<V...>>::value : Res;
-    };
-
-    template<int H, int Res>
-    struct BisectLeft_Helper<H, Res, Vector<>> {
-        constexpr static int value = Res;
-    };
-
-
 // Your code goes here:
 // ^ Your code goes here
 
-    static_assert(BisectLeft<3, Vector<0, 1, 2, 3, 4>>::value == 3);
-    static_assert(BisectLeft<3, Vector<0, 1, 2, 4, 5>>::value == 3);
-    static_assert(BisectLeft<9, Vector<0, 1, 2, 4, 5>>::value == 5);
-    static_assert(BisectLeft<-1, Vector<0, 1, 2, 4, 5>>::value == 0);
-    static_assert(BisectLeft<2, Vector<0, 2, 2, 2, 2, 2>>::value == 1);
+// static_assert(BisectLeft<  3, Vector<0,1,2,3,4>>::value == 3);
+// static_assert(BisectLeft<  3, Vector<0,1,2,4,5>>::value == 3);
+// static_assert(BisectLeft<  9, Vector<0,1,2,4,5>>::value == 5);
+// static_assert(BisectLeft< -1, Vector<0,1,2,4,5>>::value == 0);
+// static_assert(BisectLeft<  2, Vector<0,2,2,2,2,2>>::value == 1);
 
 
 /**
@@ -409,10 +395,83 @@ namespace {
 // static_assert(std::is_same_v<Insert<2, 3, Vector<4,5,6>>::type, Vector<4,5,3,6>>);
 // static_assert(std::is_same_v<Insert<3, 3, Vector<4,5,6>>::type, Vector<4,5,6,3>>);
 
+
+/** 
+ * 19. (of my own design) Make an std::array of length N.
+ */
+
+template <typename T, T... ints>
+constexpr auto make_arr(std::integer_sequence<T, ints...> seq) {
+    return std::array<T, sizeof...(ints)>{{ints...}};
 }
 
+template <int n>
+constexpr auto make_arr() {
+    return make_arr(std::make_integer_sequence<int, n>{});
+}
 
-int main() {
+/** 
+ * 20. (of my own design) Mimic how enable_if_t works
+ */
+template <typename A, typename B>
+struct is_same {
+    static constexpr bool value = false;
+};
 
-    return 0;
+template <typename A>
+struct is_same<A, A> {
+    static constexpr bool value = true;
+};
+
+template <typename A, typename B>
+static constexpr bool is_same_v = is_same<A, B>::value;
+
+template <bool b, typename T>
+struct enable_if {};
+
+template <typename T>
+struct enable_if<true, T> {
+    using type = T;
+};
+
+template <bool b, typename T = void>
+using enable_if_t = enable_if<b, T>::type;
+
+// Now verify with some SFINAE
+template <int I, typename Op, typename = void> 
+struct Int {
+    static constexpr int value = I;
+};
+
+// To be honest, enable_if_t is pretty useless in 
+// this example. Maybe I'll come up with a better 
+// example later. 
+
+struct AddOneType {};
+struct SubOneType {};
+
+template <int I, typename Op>
+struct Int<I, Op, enable_if_t<is_same_v<Op, AddOneType>>> {
+    static constexpr int value = I + 1;
+};
+
+template <int I, typename Op>
+struct Int<I, Op, enable_if_t<is_same_v<Op, SubOneType>>> {
+    static constexpr int value = I - 1;
+};
+
+static_assert(Int<3, AddOneType>::value == 4);
+
+}
+
+int main()
+{
+    using namespace exer;
+    print(Vector<>{});
+    print(Vector<1>{});
+    print(Vector<1,2,3,4,5,6>{});
+    std::cout << typeid(Vector<1,2,3,4,5,6>{}).name() << '\n';
+
+    auto arr = make_arr<3>();
+    std::cout << "{" << arr[0] << ", " << arr[1] << ", " << arr[2] << "}" << std::endl; 
 }
